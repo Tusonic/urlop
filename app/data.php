@@ -5,6 +5,11 @@ $leaveRequests = [];
 $usedLeaveDays = 0;
 $remainingLeaveDays = 0;
 $calendarEvents = [];
+$remoteWorkToday = null;
+$remoteWorkHistory = [];
+$employeeRcpMonth = parseMonthInput((string) ($_GET['rcp_month'] ?? date('Y-m'))) ?: new DateTimeImmutable('first day of this month');
+$employeeRcpDays = [];
+$employeeRcpByDate = [];
 $adminEmployees = [];
 $adminVacationRequests = [];
 $adminCalendarEvents = [];
@@ -23,8 +28,50 @@ $adminScheduleTotals = [];
 $adminScheduleCalendarDays = [];
 $adminScheduleByDate = [];
 $adminScheduleMonthStatuses = [];
+$adminRcpMonth = parseMonthInput((string) ($_GET['rcp_month'] ?? date('Y-m'))) ?: new DateTimeImmutable('first day of this month');
+$adminRcpEmployeeId = filter_input(INPUT_GET, 'rcp_employee_id', FILTER_VALIDATE_INT) ?: 0;
+$adminRcpEmployees = [];
+$adminRcpRows = [];
 
 if ($employee && !$isAdmin) {
+    $remoteTodayStmt = $pdo->prepare(
+        'SELECT *
+         FROM remote_work_attendances
+         WHERE employee_id = :employee_id AND work_date = :work_date'
+    );
+    $remoteTodayStmt->execute([
+        'employee_id' => (int) $employee['id'],
+        'work_date' => date('Y-m-d'),
+    ]);
+    $remoteWorkToday = $remoteTodayStmt->fetch() ?: null;
+
+    $remoteHistoryStmt = $pdo->prepare(
+        'SELECT *
+         FROM remote_work_attendances
+         WHERE employee_id = :employee_id
+         ORDER BY work_date DESC
+         LIMIT 7'
+    );
+    $remoteHistoryStmt->execute(['employee_id' => (int) $employee['id']]);
+    $remoteWorkHistory = $remoteHistoryStmt->fetchAll();
+
+    $employeeRcpDays = monthDays($employeeRcpMonth);
+    $employeeRcpStmt = $pdo->prepare(
+        'SELECT *
+         FROM remote_work_attendances
+         WHERE employee_id = :employee_id
+           AND work_date BETWEEN :month_start AND :month_end'
+    );
+    $employeeRcpStmt->execute([
+        'employee_id' => (int) $employee['id'],
+        'month_start' => $employeeRcpMonth->modify('first day of this month')->format('Y-m-d'),
+        'month_end' => $employeeRcpMonth->modify('last day of this month')->format('Y-m-d'),
+    ]);
+
+    foreach ($employeeRcpStmt->fetchAll() as $remoteDay) {
+        $employeeRcpByDate[$remoteDay['work_date']] = $remoteDay;
+    }
+
     $usedStmt = $pdo->prepare(
         'SELECT COALESCE(SUM(days), 0)
          FROM vacation_requests
@@ -70,7 +117,7 @@ if ($employee && !$isAdmin) {
                     'comment' => $comment !== '' ? $comment : null,
                     'status' => STATUS_PENDING,
                 ]);
-                redirectToHome();
+                redirectToHome(['employee_tab' => 'vacation']);
             }
         }
     }
@@ -139,11 +186,40 @@ if ($employee && $isAdmin) {
             COALESCE(SUM(CASE WHEN vr.status = 'oczekujący' THEN vr.days ELSE 0 END), 0) AS pending_days
          FROM employees e
          LEFT JOIN vacation_requests vr ON vr.employee_id = e.id
-         GROUP BY e.id, e.first_name, e.last_name, e.pin_hash, e.role, e.harmonogram, e.annual_leave_days, e.created_at
+         GROUP BY e.id, e.first_name, e.last_name, e.pin_code, e.pin_hash, e.role, e.harmonogram, e.annual_leave_days, e.created_at
          ORDER BY e.role DESC, e.last_name, e.first_name"
     );
     $employeesStmt->execute();
     $adminEmployees = $employeesStmt->fetchAll();
+
+    foreach ($adminEmployees as &$adminEmployee) {
+        $adminEmployee['pin'] = displayableEmployeePin($adminEmployee);
+    }
+    unset($adminEmployee);
+
+    $adminRcpEmployees = array_values(array_filter($adminEmployees, static function (array $adminEmployee): bool {
+        return $adminEmployee['role'] !== 'admin';
+    }));
+
+    if ($adminRcpEmployeeId === 0 && $adminRcpEmployees) {
+        $adminRcpEmployeeId = (int) $adminRcpEmployees[0]['id'];
+    }
+
+    if ($adminRcpEmployeeId > 0) {
+        $rcpStmt = $pdo->prepare(
+            'SELECT *
+             FROM remote_work_attendances
+             WHERE employee_id = :employee_id
+               AND work_date BETWEEN :month_start AND :month_end
+             ORDER BY work_date DESC'
+        );
+        $rcpStmt->execute([
+            'employee_id' => $adminRcpEmployeeId,
+            'month_start' => $adminRcpMonth->modify('first day of this month')->format('Y-m-d'),
+            'month_end' => $adminRcpMonth->modify('last day of this month')->format('Y-m-d'),
+        ]);
+        $adminRcpRows = $rcpStmt->fetchAll();
+    }
 
     $requestsStmt = $pdo->prepare(
         'SELECT vr.*, e.first_name, e.last_name
@@ -189,7 +265,7 @@ if ($employee && $isAdmin) {
              FROM employees e
              LEFT JOIN vacation_requests vr ON vr.employee_id = e.id
              WHERE e.id = :id
-             GROUP BY e.id, e.first_name, e.last_name, e.pin_hash, e.role, e.harmonogram, e.annual_leave_days, e.created_at"
+             GROUP BY e.id, e.first_name, e.last_name, e.pin_code, e.pin_hash, e.role, e.harmonogram, e.annual_leave_days, e.created_at"
         );
         $selectedStmt->execute(['id' => $selectedEmployeeId]);
         $selectedEmployee = $selectedStmt->fetch() ?: null;
@@ -263,4 +339,12 @@ if ($employee && $isAdmin) {
 }
 
 $requestedTab = $_GET['tab'] ?? 'employees';
-$activeTab = in_array($requestedTab, ['employees', 'requests', 'calendar', 'schedules'], true) ? $requestedTab : 'employees';
+$activeTab = in_array($requestedTab, ['employees', 'requests', 'calendar', 'schedules', 'rcp'], true) ? $requestedTab : 'employees';
+$requestedEmployeeTab = $_GET['employee_tab'] ?? 'rcp';
+$employeeTabs = ['rcp', 'vacation'];
+
+if ($employee && !$isAdmin && (int) ($employee['harmonogram'] ?? 0) === 1) {
+    $employeeTabs[] = 'schedule';
+}
+
+$activeEmployeeTab = in_array($requestedEmployeeTab, $employeeTabs, true) ? $requestedEmployeeTab : 'rcp';

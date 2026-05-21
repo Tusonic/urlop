@@ -9,6 +9,9 @@
                     <a class="nav-link <?= $activeTab === 'calendar' ? 'active' : '' ?>" href="index.php?tab=calendar">Kalendarz urlopów</a>
                 </li>
                 <li class="nav-item" role="presentation">
+                    <a class="nav-link <?= $activeTab === 'rcp' ? 'active' : '' ?>" href="index.php?tab=rcp">RCP</a>
+                </li>
+                <li class="nav-item" role="presentation">
                     <a class="nav-link <?= $activeTab === 'schedules' ? 'active' : '' ?>" href="index.php?tab=schedules">Harmonogram pracy</a>
                 </li>
             </ul>
@@ -16,12 +19,24 @@
             <?php if ($activeTab === 'employees'): ?>
                 <div class="card border-0 shadow-sm mb-4">
                     <div class="card-body p-4">
-                        <h2 class="h4 mb-3">Pracownicy</h2>
+                        <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-3">
+                            <h2 class="h4 mb-0">Pracownicy</h2>
+                            <div class="col-12 col-lg-4">
+                                <label for="employeesEmployeeFilter" class="form-label">Pracownik</label>
+                                <select class="form-select js-admin-employee-filter" id="employeesEmployeeFilter" data-target-table="employeesTable">
+                                    <option value="">Wszyscy pracownicy</option>
+                                    <?php foreach ($adminEmployees as $adminEmployee): ?>
+                                        <option value="<?= (int) $adminEmployee['id'] ?>"><?= e($adminEmployee['first_name'] . ' ' . $adminEmployee['last_name']) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                        </div>
                         <div class="table-responsive">
-                            <table class="table align-middle">
+                            <table class="table align-middle" id="employeesTable">
                                 <thead>
                                 <tr>
                                     <th>Pracownik</th>
+                                    <th>PIN</th>
                                     <th>Rola</th>
                                     <th>Limit</th>
                                     <th>Wykorzystane</th>
@@ -38,8 +53,17 @@
                                     $pending = (int) $adminEmployee['pending_days'];
                                     $remaining = max(0, (int) $adminEmployee['annual_leave_days'] - $used - $pending);
                                     ?>
-                                    <tr>
+                                    <tr data-employee-id="<?= (int) $adminEmployee['id'] ?>">
                                         <td><?= e($adminEmployee['first_name'] . ' ' . $adminEmployee['last_name']) ?></td>
+                                        <td>
+                                            <?php if ($adminEmployee['pin']): ?>
+                                                <button type="button"
+                                                        class="btn btn-sm btn-outline-secondary js-show-pin"
+                                                        data-pin="<?= e($adminEmployee['pin']) ?>">PIN</button>
+                                            <?php else: ?>
+                                                <span class="text-secondary small">Niedostępny</span>
+                                            <?php endif; ?>
+                                        </td>
                                         <td><?= $adminEmployee['role'] === 'admin' ? 'Administrator' : 'Pracownik' ?></td>
                                         <td><?= (int) $adminEmployee['annual_leave_days'] ?></td>
                                         <td><?= $used ?></td>
@@ -63,6 +87,9 @@
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>
+                                    <tr class="js-filter-empty d-none">
+                                        <td colspan="9" class="text-secondary text-center py-4">Brak pracowników spełniających kryteria filtra.</td>
+                                    </tr>
                                 </tbody>
                             </table>
                         </div>
@@ -148,12 +175,23 @@
             <?php if ($activeTab === 'requests'): ?>
                 <div class="card border-0 shadow-sm">
                     <div class="card-body p-4">
-                        <h2 class="h4 mb-3">Lista wniosków</h2>
+                        <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-3">
+                            <h2 class="h4 mb-0">Lista wniosków</h2>
+                            <div class="col-12 col-lg-4">
+                                <label for="requestsEmployeeFilter" class="form-label">Pracownik</label>
+                                <select class="form-select js-admin-employee-filter" id="requestsEmployeeFilter" data-target-table="requestsTable">
+                                    <option value="">Wszyscy pracownicy</option>
+                                    <?php foreach ($adminEmployees as $adminEmployee): ?>
+                                        <option value="<?= (int) $adminEmployee['id'] ?>"><?= e($adminEmployee['first_name'] . ' ' . $adminEmployee['last_name']) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                        </div>
                         <?php if (!$adminVacationRequests): ?>
                             <p class="text-secondary mb-0">Brak zgłoszonych urlopów.</p>
                         <?php else: ?>
                             <div class="table-responsive">
-                                <table class="table align-middle">
+                                <table class="table align-middle" id="requestsTable">
                                     <thead>
                                     <tr>
                                         <th>Pracownik</th>
@@ -168,7 +206,7 @@
                                     </thead>
                                     <tbody>
                                     <?php foreach ($adminVacationRequests as $request): ?>
-                                        <tr>
+                                        <tr data-employee-id="<?= (int) $request['employee_id'] ?>">
                                             <td><?= e($request['first_name'] . ' ' . $request['last_name']) ?></td>
                                             <td><?= e($request['start_date']) ?></td>
                                             <td><?= e($request['end_date']) ?></td>
@@ -202,6 +240,9 @@
                                             </td>
                                         </tr>
                                     <?php endforeach; ?>
+                                        <tr class="js-filter-empty d-none">
+                                            <td colspan="8" class="text-secondary text-center py-4">Brak wniosków spełniających kryteria filtra.</td>
+                                        </tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -234,6 +275,66 @@
                             <span class="badge text-bg-danger">Odrzucony</span>
                         </div>
                         <div id="admin-calendar" class="rounded bg-white"></div>
+                    </div>
+                </div>
+            <?php endif; ?>
+
+            <?php if ($activeTab === 'rcp'): ?>
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body p-4">
+                        <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-4">
+                            <div>
+                                <h2 class="h4 mb-1">RCP</h2>
+                                <div class="text-secondary">Podgląd odbić pracy zdalnej pracowników.</div>
+                            </div>
+                            <form method="get" class="row g-2 align-items-end">
+                                <input type="hidden" name="tab" value="rcp">
+                                <div class="col-12 col-sm-auto">
+                                    <label for="rcp_employee_id" class="form-label">Pracownik</label>
+                                    <select class="form-select" id="rcp_employee_id" name="rcp_employee_id">
+                                        <?php foreach ($adminRcpEmployees as $adminRcpEmployee): ?>
+                                            <option value="<?= (int) $adminRcpEmployee['id'] ?>" <?= $adminRcpEmployeeId === (int) $adminRcpEmployee['id'] ? 'selected' : '' ?>>
+                                                <?= e($adminRcpEmployee['first_name'] . ' ' . $adminRcpEmployee['last_name']) ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="col-12 col-sm-auto">
+                                    <label for="rcp_month" class="form-label">Miesiąc</label>
+                                    <input type="month" class="form-control" id="rcp_month" name="rcp_month" value="<?= e($adminRcpMonth->format('Y-m')) ?>">
+                                </div>
+                                <div class="col-12 col-sm-auto">
+                                    <button type="submit" class="btn btn-primary">Filtruj</button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <?php if (!$adminRcpEmployees): ?>
+                            <p class="text-secondary mb-0">Brak pracowników do wyświetlenia.</p>
+                        <?php elseif (!$adminRcpRows): ?>
+                            <p class="text-secondary mb-0">Brak odbić dla wybranego pracownika w tym miesiącu.</p>
+                        <?php else: ?>
+                            <div class="table-responsive">
+                                <table class="table align-middle">
+                                    <thead>
+                                    <tr>
+                                        <th>Data</th>
+                                        <th>Start</th>
+                                        <th>Koniec</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    <?php foreach ($adminRcpRows as $rcpRow): ?>
+                                        <tr>
+                                            <td><?= e($rcpRow['work_date']) ?></td>
+                                            <td><?= e(date('H:i', strtotime($rcpRow['first_punch_at']))) ?></td>
+                                            <td><?= !empty($rcpRow['last_punch_at']) ? e(date('H:i', strtotime($rcpRow['last_punch_at']))) : '-' ?></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <?php endif; ?>
                     </div>
                 </div>
             <?php endif; ?>

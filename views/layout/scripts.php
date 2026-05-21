@@ -3,15 +3,24 @@
         document.addEventListener('DOMContentLoaded', function () {
             const startInput = document.getElementById('start_date');
             const endInput = document.getElementById('end_date');
-            const calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
+            const calendarElement = document.getElementById('calendar');
+
+            if (!calendarElement) {
+                return;
+            }
+
+            const calendar = new FullCalendar.Calendar(calendarElement, {
                 initialView: 'dayGridMonth',
                 locale: 'pl',
                 firstDay: 1,
                 height: 'auto',
                 events: <?= json_encode($calendarEvents, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
                 dateClick: function (info) {
-                    startInput.value = info.dateStr;
-                    if (!endInput.value || endInput.value < info.dateStr) {
+                    if (startInput) {
+                        startInput.value = info.dateStr;
+                    }
+
+                    if (endInput && (!endInput.value || endInput.value < info.dateStr)) {
                         endInput.value = info.dateStr;
                     }
                 }
@@ -46,6 +55,47 @@
                 document.getElementById('delete-request-id').value = id;
                 deleteModal.show();
             }
+
+            function setupEmployeeTableFilter(filter) {
+                const table = document.getElementById(filter.dataset.targetTable);
+                if (!table) {
+                    return;
+                }
+
+                const rows = table.querySelectorAll('tbody tr[data-employee-id]');
+                const emptyRow = table.querySelector('.js-filter-empty');
+
+                function applyFilter() {
+                    const employeeId = filter.value;
+                    let visibleRows = 0;
+
+                    rows.forEach(function (row) {
+                        const isVisible = !employeeId || row.dataset.employeeId === employeeId;
+                        row.classList.toggle('d-none', !isVisible);
+
+                        if (isVisible) {
+                            visibleRows += 1;
+                        }
+                    });
+
+                    if (emptyRow) {
+                        emptyRow.classList.toggle('d-none', visibleRows > 0);
+                    }
+                }
+
+                filter.addEventListener('change', applyFilter);
+                applyFilter();
+            }
+
+            document.querySelectorAll('.js-admin-employee-filter').forEach(setupEmployeeTableFilter);
+
+            document.querySelectorAll('.js-show-pin').forEach(function (button) {
+                button.addEventListener('click', function () {
+                    button.textContent = button.dataset.pin || 'PIN';
+                    button.classList.remove('btn-outline-secondary');
+                    button.classList.add('btn-secondary');
+                });
+            });
 
             document.querySelectorAll('.js-edit-vacation').forEach(function (button) {
                 button.addEventListener('click', function () {

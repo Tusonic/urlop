@@ -44,6 +44,36 @@ $isAdmin = $employee && ($_SESSION['employee_role'] ?? '') === 'admin' && $emplo
 if ($employee && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = (string) ($_POST['action'] ?? '');
 
+    if ($action === 'remote_work_punch') {
+        if ($isAdmin) {
+            http_response_code(403);
+            exit('Brak uprawnień.');
+        }
+
+        $workDate = date('Y-m-d');
+        $punchTime = date('Y-m-d H:i:s');
+
+        $punchStmt = $pdo->prepare(
+            'INSERT INTO remote_work_attendances (employee_id, work_date, first_punch_at)
+             VALUES (:employee_id, :work_date, :punch_time)
+             ON DUPLICATE KEY UPDATE last_punch_at = VALUES(first_punch_at)'
+        );
+        $punchStmt->execute([
+            'employee_id' => (int) $employee['id'],
+            'work_date' => $workDate,
+            'punch_time' => $punchTime,
+        ]);
+
+        flash(
+            'success',
+            $punchStmt->rowCount() === 1
+                ? 'Rozpoczęcie pracy zdalnej zostało zapisane.'
+                : 'Zakończenie pracy zdalnej zostało zapisane.'
+        );
+
+        redirectToHome(['employee_tab' => 'rcp']);
+    }
+
     if ($action === 'update_vacation_status') {
         requireAdmin($employee);
         $requestId = filter_input(INPUT_POST, 'request_id', FILTER_VALIDATE_INT);
@@ -197,7 +227,7 @@ if ($employee && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (!$scheduleMonth || !is_array($scheduleHours)) {
             flash('danger', 'Nieprawidłowy miesiąc harmonogramu.');
-            redirectToHome();
+            redirectToHome(['employee_tab' => 'schedule']);
         }
 
         $lockStmt = $pdo->prepare(
@@ -212,7 +242,10 @@ if ($employee && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($lockStmt->fetchColumn() === 'approved') {
             flash('danger', 'Ten harmonogram został zaakceptowany przez administratora i nie można go już edytować.');
-            redirectToHome(['schedule_month' => $scheduleMonth->format('Y-m')]);
+            redirectToHome([
+                'employee_tab' => 'schedule',
+                'schedule_month' => $scheduleMonth->format('Y-m'),
+            ]);
         }
 
         $monthStart = $scheduleMonth->modify('first day of this month')->format('Y-m-d');
@@ -225,7 +258,10 @@ if ($employee && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if (!$dateObject || $dateObject->format('Y-m') !== $scheduleMonth->format('Y-m') || $hours === null) {
                 flash('danger', 'Godziny w harmonogramie muszą być pełną liczbą: 0 albo od 1 do 8.');
-                redirectToHome(['schedule_month' => $scheduleMonth->format('Y-m')]);
+                redirectToHome([
+                    'employee_tab' => 'schedule',
+                    'schedule_month' => $scheduleMonth->format('Y-m'),
+                ]);
             }
 
             if ((float) $hours > 0) {
@@ -265,6 +301,9 @@ if ($employee && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $pdo->commit();
         flash('success', 'Harmonogram pracy został zapisany.');
-        redirectToHome(['schedule_month' => $scheduleMonth->format('Y-m')]);
+        redirectToHome([
+            'employee_tab' => 'schedule',
+            'schedule_month' => $scheduleMonth->format('Y-m'),
+        ]);
     }
 }
