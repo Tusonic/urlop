@@ -7,11 +7,6 @@ date_default_timezone_set('Europe/Warsaw');
 require __DIR__ . '/../config.php';
 require __DIR__ . '/functions.php';
 
-$pinCodeColumnStmt = $pdo->query("SHOW COLUMNS FROM employees LIKE 'pin_code'");
-if (!$pinCodeColumnStmt->fetch()) {
-    $pdo->exec('ALTER TABLE employees ADD COLUMN pin_code VARCHAR(20) NULL AFTER last_name');
-}
-
 $pdo->exec(
     "CREATE TABLE IF NOT EXISTS remote_work_attendances (
         id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

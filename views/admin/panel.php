@@ -19,6 +19,48 @@
             <?php if ($activeTab === 'employees'): ?>
                 <div class="card border-0 shadow-sm mb-4">
                     <div class="card-body p-4">
+                        <h2 class="h4 mb-3">Nowe konto pracownika</h2>
+                        <form method="post" class="row g-3 align-items-end">
+                            <input type="hidden" name="action" value="create_employee">
+                            <div class="col-12 col-md-3">
+                                <label for="new_first_name" class="form-label">Imię</label>
+                                <input type="text" class="form-control" id="new_first_name" name="first_name" maxlength="100" required>
+                            </div>
+                            <div class="col-12 col-md-3">
+                                <label for="new_last_name" class="form-label">Nazwisko</label>
+                                <input type="text" class="form-control" id="new_last_name" name="last_name" maxlength="100" required>
+                            </div>
+                            <div class="col-12 col-sm-6 col-md-2">
+                                <label for="new_pin_code" class="form-label">PIN</label>
+                                <input type="text" class="form-control" id="new_pin_code" name="pin_code" maxlength="20" inputmode="numeric" required>
+                            </div>
+                            <div class="col-12 col-sm-6 col-md-2">
+                                <label for="new_annual_leave_days" class="form-label">Limit urlopu</label>
+                                <input type="number" class="form-control" id="new_annual_leave_days" name="annual_leave_days" min="0" max="365" step="1" value="26" required>
+                            </div>
+                            <div class="col-12 col-sm-6 col-md-2">
+                                <label for="new_role" class="form-label">Rola</label>
+                                <select class="form-select" id="new_role" name="role">
+                                    <option value="employee">Pracownik</option>
+                                    <option value="admin">Administrator</option>
+                                </select>
+                            </div>
+                            <div class="col-12 col-sm-6 col-md-2">
+                                <label for="new_harmonogram" class="form-label">Harmonogram</label>
+                                <select class="form-select" id="new_harmonogram" name="harmonogram">
+                                    <option value="0">Wyłączony</option>
+                                    <option value="1">Włączony</option>
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-auto">
+                                <button type="submit" class="btn btn-primary">Utwórz konto</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-body p-4">
                         <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-3">
                             <h2 class="h4 mb-0">Pracownicy</h2>
                             <div class="col-12 col-lg-4">
@@ -83,6 +125,15 @@
                                             </form>
                                         </td>
                                         <td class="table-actions">
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-primary js-edit-employee"
+                                                    data-id="<?= (int) $adminEmployee['id'] ?>"
+                                                    data-first-name="<?= e($adminEmployee['first_name']) ?>"
+                                                    data-last-name="<?= e($adminEmployee['last_name']) ?>"
+                                                    data-pin="<?= e((string) $adminEmployee['pin_code']) ?>"
+                                                    data-annual-leave-days="<?= (int) $adminEmployee['annual_leave_days'] ?>"
+                                                    data-role="<?= e($adminEmployee['role']) ?>"
+                                                    data-harmonogram="<?= (int) $adminEmployee['harmonogram'] ?>">Edytuj</button>
                                             <a class="btn btn-sm btn-primary" href="index.php?tab=employees&employee_id=<?= (int) $adminEmployee['id'] ?>#employee-card">Podgląd</a>
                                         </td>
                                     </tr>
@@ -457,6 +508,57 @@
                     </div>
                 </div>
             <?php endif; ?>
+
+            <div class="modal fade" id="editEmployeeModal" tabindex="-1" aria-labelledby="editEmployeeModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <form method="post" class="modal-content">
+                        <div class="modal-header">
+                            <h2 class="modal-title fs-5" id="editEmployeeModalLabel">Edycja pracownika</h2>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Zamknij"></button>
+                        </div>
+                        <div class="modal-body">
+                            <input type="hidden" name="action" value="update_employee">
+                            <input type="hidden" name="employee_id" id="edit-employee-id">
+                            <div class="row g-3">
+                                <div class="col-12 col-sm-6">
+                                    <label for="edit-employee-first-name" class="form-label">Imię</label>
+                                    <input type="text" class="form-control" name="first_name" id="edit-employee-first-name" maxlength="100" required>
+                                </div>
+                                <div class="col-12 col-sm-6">
+                                    <label for="edit-employee-last-name" class="form-label">Nazwisko</label>
+                                    <input type="text" class="form-control" name="last_name" id="edit-employee-last-name" maxlength="100" required>
+                                </div>
+                                <div class="col-12 col-sm-6">
+                                    <label for="edit-employee-pin" class="form-label">PIN</label>
+                                    <input type="text" class="form-control" name="pin_code" id="edit-employee-pin" maxlength="20" inputmode="numeric" required>
+                                </div>
+                                <div class="col-12 col-sm-6">
+                                    <label for="edit-employee-leave-days" class="form-label">Limit urlopu</label>
+                                    <input type="number" class="form-control" name="annual_leave_days" id="edit-employee-leave-days" min="0" max="365" step="1" required>
+                                </div>
+                                <div class="col-12 col-sm-6">
+                                    <label for="edit-employee-role" class="form-label">Rola</label>
+                                    <select class="form-select" name="role" id="edit-employee-role">
+                                        <option value="employee">Pracownik</option>
+                                        <option value="admin">Administrator</option>
+                                    </select>
+                                </div>
+                                <div class="col-12 col-sm-6">
+                                    <label for="edit-employee-harmonogram" class="form-label">Harmonogram</label>
+                                    <select class="form-select" name="harmonogram" id="edit-employee-harmonogram">
+                                        <option value="0">Wyłączony</option>
+                                        <option value="1">Włączony</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Anuluj</button>
+                            <button type="submit" class="btn btn-primary">Zapisz pracownika</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
 
             <div class="modal fade" id="vacationDetailsModal" tabindex="-1" aria-labelledby="vacationDetailsModalLabel" aria-hidden="true">
                 <div class="modal-dialog modal-dialog-centered">

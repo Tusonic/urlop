@@ -7,19 +7,19 @@ CREATE DATABASE urlop
 USE urlop;
 
 -- UWAGA:
--- Ten plik jest pelnym instalatorem bazy danych od zera.
--- DROP DATABASE usuwa wszystkie istniejace dane w bazie urlop.
+-- Ten plik jest pełnym instalatorem bazy danych od zera.
+-- DROP DATABASE usuwa wszystkie istniejące dane w bazie urlop.
 
 CREATE TABLE employees (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
-    pin_code VARCHAR(20) NULL,
-    pin_hash VARCHAR(255) NOT NULL,
+    pin_code VARCHAR(20) NOT NULL,
     role ENUM('employee', 'admin') NOT NULL DEFAULT 'employee',
     harmonogram TINYINT(1) NOT NULL DEFAULT 0,
     annual_leave_days INT UNSIGNED NOT NULL DEFAULT 26,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_employees_pin_code (pin_code),
     INDEX idx_employees_role (role),
     INDEX idx_employees_harmonogram (harmonogram)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -91,21 +91,18 @@ CREATE TABLE remote_work_attendances (
     INDEX idx_remote_work_attendances_work_date (work_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Hash PIN-u wygenerujesz w PHP np. tak:
--- <?php echo password_hash('1234', PASSWORD_DEFAULT);
---
--- Przykladowe konta testowe:
+-- Przykładowe konta testowe:
 -- Jan Kowalski, pracownik: PIN 1234
 -- Anna Nowak, pracownik: PIN 5678
--- Piotr Zielinski, pracownik: PIN 2468
+-- Piotr Zieliński, pracownik: PIN 2468
 -- Admin Urlopowy, administrator: PIN 9999
 
-INSERT INTO employees (first_name, last_name, pin_code, pin_hash, role, harmonogram, annual_leave_days)
+INSERT INTO employees (first_name, last_name, pin_code, role, harmonogram, annual_leave_days)
 VALUES
-('Jan', 'Kowalski', '1234', '$2y$10$3MWiZdviQyNqJYaDhIormeKEZmyz1pLnKemlwk.zTGcwxg6jkMl/a', 'employee', 1, 26),
-('Anna', 'Nowak', '5678', '$2y$10$F8KK2I1flmkPO9WYb5hPK.AufnNFWtT65wKGI1hC0wh6TxqCl6Q0O', 'employee', 1, 26),
-('Piotr', 'Zielinski', '2468', '$2y$10$kiwTqNeixfNgFxsL6BuFFuvbJBdoMaYkyKQ8elcy6L7Oou724hRwi', 'employee', 0, 26),
-('Admin', 'Urlopowy', '9999', '$2y$10$3XrarV5l1LgC8rAdcKFGqu2/LPrAlIjplEgkbvBEmoM60JQWcs1le', 'admin', 0, 26);
+('Jan', 'Kowalski', '1234', 'employee', 1, 26),
+('Anna', 'Nowak', '5678', 'employee', 1, 26),
+('Piotr', 'Zieliński', '2468', 'employee', 0, 26),
+('Admin', 'Urlopowy', '9999', 'admin', 0, 26);
 
 INSERT INTO vacation_requests (employee_id, start_date, end_date, days, comment, status, created_at)
 VALUES

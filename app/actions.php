@@ -16,16 +16,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'login
     if ($pin === '') {
         $errors[] = 'Wpisz PIN.';
     } else {
-        $stmt = $pdo->prepare('SELECT id, role, pin_hash FROM employees');
-        $stmt->execute();
-        $matchedEmployee = null;
-
-        foreach ($stmt->fetchAll() as $employeeRow) {
-            if (password_verify($pin, $employeeRow['pin_hash'])) {
-                $matchedEmployee = $employeeRow;
-                break;
-            }
-        }
+        $stmt = $pdo->prepare('SELECT id, role FROM employees WHERE pin_code = :pin_code');
+        $stmt->execute(['pin_code' => $pin]);
+        $matchedEmployee = $stmt->fetch() ?: null;
 
         if ($matchedEmployee) {
             session_regenerate_id(true);
@@ -72,6 +65,106 @@ if ($employee && $_SERVER['REQUEST_METHOD'] === 'POST') {
         );
 
         redirectToHome(['employee_tab' => 'rcp']);
+    }
+
+    if ($action === 'create_employee') {
+        requireAdmin($employee);
+
+        $firstName = trim((string) ($_POST['first_name'] ?? ''));
+        $lastName = trim((string) ($_POST['last_name'] ?? ''));
+        $pinCode = trim((string) ($_POST['pin_code'] ?? ''));
+        $annualLeaveDays = filter_input(INPUT_POST, 'annual_leave_days', FILTER_VALIDATE_INT);
+        $role = (string) ($_POST['role'] ?? 'employee');
+        $harmonogram = (string) ($_POST['harmonogram'] ?? '0');
+
+        if ($firstName === '' || $lastName === '' || $pinCode === '') {
+            flash('danger', 'Imię, nazwisko i PIN są wymagane.');
+        } elseif ($annualLeaveDays === false || $annualLeaveDays === null || $annualLeaveDays < 0 || $annualLeaveDays > 365) {
+            flash('danger', 'Podaj poprawny limit urlopu.');
+        } elseif (!in_array($role, ['employee', 'admin'], true) || !in_array($harmonogram, ['0', '1'], true)) {
+            flash('danger', 'Nieprawidłowe dane pracownika.');
+        } else {
+            $pinStmt = $pdo->prepare('SELECT id FROM employees WHERE pin_code = :pin_code');
+            $pinStmt->execute(['pin_code' => $pinCode]);
+
+            if ($pinStmt->fetch()) {
+                flash('danger', 'Taki PIN już istnieje. Nadaj inny numer PIN.');
+            } else {
+                $stmt = $pdo->prepare(
+                    'INSERT INTO employees (first_name, last_name, pin_code, role, harmonogram, annual_leave_days)
+                     VALUES (:first_name, :last_name, :pin_code, :role, :harmonogram, :annual_leave_days)'
+                );
+                $stmt->execute([
+                    'first_name' => $firstName,
+                    'last_name' => $lastName,
+                    'pin_code' => $pinCode,
+                    'role' => $role,
+                    'harmonogram' => (int) $harmonogram,
+                    'annual_leave_days' => $annualLeaveDays,
+                ]);
+                flash('success', 'Nowe konto pracownika zostało utworzone.');
+            }
+        }
+
+        redirectToHome(['tab' => 'employees']);
+    }
+
+    if ($action === 'update_employee') {
+        requireAdmin($employee);
+
+        $targetEmployeeId = filter_input(INPUT_POST, 'employee_id', FILTER_VALIDATE_INT);
+        $firstName = trim((string) ($_POST['first_name'] ?? ''));
+        $lastName = trim((string) ($_POST['last_name'] ?? ''));
+        $pinCode = trim((string) ($_POST['pin_code'] ?? ''));
+        $annualLeaveDays = filter_input(INPUT_POST, 'annual_leave_days', FILTER_VALIDATE_INT);
+        $role = (string) ($_POST['role'] ?? 'employee');
+        $harmonogram = (string) ($_POST['harmonogram'] ?? '0');
+
+        if (!$targetEmployeeId || $firstName === '' || $lastName === '' || $pinCode === '') {
+            flash('danger', 'Imię, nazwisko i PIN są wymagane.');
+        } elseif ($annualLeaveDays === false || $annualLeaveDays === null || $annualLeaveDays < 0 || $annualLeaveDays > 365) {
+            flash('danger', 'Podaj poprawny limit urlopu.');
+        } elseif (!in_array($role, ['employee', 'admin'], true) || !in_array($harmonogram, ['0', '1'], true)) {
+            flash('danger', 'Nieprawidłowe dane pracownika.');
+        } else {
+            $pinStmt = $pdo->prepare('SELECT id FROM employees WHERE pin_code = :pin_code AND id <> :id');
+            $pinStmt->execute([
+                'pin_code' => $pinCode,
+                'id' => $targetEmployeeId,
+            ]);
+
+            if ($pinStmt->fetch()) {
+                flash('danger', 'Taki PIN już istnieje. Nadaj inny numer PIN.');
+            } else {
+                $stmt = $pdo->prepare(
+                    'UPDATE employees
+                     SET first_name = :first_name,
+                         last_name = :last_name,
+                         pin_code = :pin_code,
+                         role = :role,
+                         harmonogram = :harmonogram,
+                         annual_leave_days = :annual_leave_days
+                     WHERE id = :id'
+                );
+                $stmt->execute([
+                    'first_name' => $firstName,
+                    'last_name' => $lastName,
+                    'pin_code' => $pinCode,
+                    'role' => $role,
+                    'harmonogram' => (int) $harmonogram,
+                    'annual_leave_days' => $annualLeaveDays,
+                    'id' => $targetEmployeeId,
+                ]);
+
+                if ($targetEmployeeId === (int) $employee['id']) {
+                    $_SESSION['employee_role'] = $role;
+                }
+
+                flash('success', 'Dane pracownika zostały zapisane.');
+            }
+        }
+
+        redirectToHome(['tab' => 'employees']);
     }
 
     if ($action === 'update_vacation_status') {

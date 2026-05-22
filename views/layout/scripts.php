@@ -37,6 +37,7 @@
             const editModal = new bootstrap.Modal(document.getElementById('editVacationModal'));
             const deleteModal = new bootstrap.Modal(document.getElementById('deleteVacationModal'));
             const detailsModal = new bootstrap.Modal(document.getElementById('vacationDetailsModal'));
+            const editEmployeeModal = new bootstrap.Modal(document.getElementById('editEmployeeModal'));
             let currentVacation = null;
 
             function setText(id, value) {
@@ -94,6 +95,19 @@
                     button.textContent = button.dataset.pin || 'PIN';
                     button.classList.remove('btn-outline-secondary');
                     button.classList.add('btn-secondary');
+                });
+            });
+
+            document.querySelectorAll('.js-edit-employee').forEach(function (button) {
+                button.addEventListener('click', function () {
+                    document.getElementById('edit-employee-id').value = button.dataset.id;
+                    document.getElementById('edit-employee-first-name').value = button.dataset.firstName || '';
+                    document.getElementById('edit-employee-last-name').value = button.dataset.lastName || '';
+                    document.getElementById('edit-employee-pin').value = button.dataset.pin || '';
+                    document.getElementById('edit-employee-leave-days').value = button.dataset.annualLeaveDays || '26';
+                    document.getElementById('edit-employee-role').value = button.dataset.role || 'employee';
+                    document.getElementById('edit-employee-harmonogram').value = button.dataset.harmonogram || '0';
+                    editEmployeeModal.show();
                 });
             });
 

@@ -186,7 +186,7 @@ if ($employee && $isAdmin) {
             COALESCE(SUM(CASE WHEN vr.status = 'oczekujący' THEN vr.days ELSE 0 END), 0) AS pending_days
          FROM employees e
          LEFT JOIN vacation_requests vr ON vr.employee_id = e.id
-         GROUP BY e.id, e.first_name, e.last_name, e.pin_code, e.pin_hash, e.role, e.harmonogram, e.annual_leave_days, e.created_at
+         GROUP BY e.id, e.first_name, e.last_name, e.pin_code, e.role, e.harmonogram, e.annual_leave_days, e.created_at
          ORDER BY e.role DESC, e.last_name, e.first_name"
     );
     $employeesStmt->execute();
@@ -265,7 +265,7 @@ if ($employee && $isAdmin) {
              FROM employees e
              LEFT JOIN vacation_requests vr ON vr.employee_id = e.id
              WHERE e.id = :id
-             GROUP BY e.id, e.first_name, e.last_name, e.pin_code, e.pin_hash, e.role, e.harmonogram, e.annual_leave_days, e.created_at"
+             GROUP BY e.id, e.first_name, e.last_name, e.pin_code, e.role, e.harmonogram, e.annual_leave_days, e.created_at"
         );
         $selectedStmt->execute(['id' => $selectedEmployeeId]);
         $selectedEmployee = $selectedStmt->fetch() ?: null;

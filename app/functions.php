@@ -13,18 +13,7 @@ function e(?string $value): string
 
 function displayableEmployeePin(array $employee): ?string
 {
-    if (!empty($employee['pin_code'])) {
-        return (string) $employee['pin_code'];
-    }
-
-    $knownPins = [
-        '$2y$10$3MWiZdviQyNqJYaDhIormeKEZmyz1pLnKemlwk.zTGcwxg6jkMl/a' => '1234',
-        '$2y$10$F8KK2I1flmkPO9WYb5hPK.AufnNFWtT65wKGI1hC0wh6TxqCl6Q0O' => '5678',
-        '$2y$10$kiwTqNeixfNgFxsL6BuFFuvbJBdoMaYkyKQ8elcy6L7Oou724hRwi' => '2468',
-        '$2y$10$3XrarV5l1LgC8rAdcKFGqu2/LPrAlIjplEgkbvBEmoM60JQWcs1le' => '9999',
-    ];
-
-    return $knownPins[$employee['pin_hash'] ?? ''] ?? null;
+    return !empty($employee['pin_code']) ? (string) $employee['pin_code'] : null;
 }
 
 function redirectToHome(array $params = []): void
@@ -189,5 +178,3 @@ function requireAdmin(?array $employee): void
     }
 }
 
-// Hash PIN-u wygenerujesz np. tak:
-// <?php echo password_hash('1234', PASSWORD_DEFAULT);
